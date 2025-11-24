@@ -52,5 +52,5 @@ Once it finds the correct path that returns a valid SQLite file, it saves that p
 
 This ensures compatibility with almost all X-UI forks (Sanaei, Vaxilu, FranzKafkaYu, etc.).
 
-Disclaimer
+## Disclaimer
 This project is for educational and server management purposes. Use it responsibly.

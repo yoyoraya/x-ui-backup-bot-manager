@@ -95,9 +95,14 @@ def get_authenticated_session(server):
 def perform_backup_sync(server):
     session, base_url, error = get_authenticated_session(server)
     if not session: return None, error
-    target_path = server.get('db_path')
-    paths_to_try = [target_path] if target_path else POSSIBLE_PATHS
-    for path in paths_to_try:
+    
+    saved_path = server.get('db_path')
+    paths_to_scan = []
+    if saved_path: paths_to_scan.append(saved_path)
+    for p in POSSIBLE_PATHS:
+        if p != saved_path: paths_to_scan.append(p)
+    
+    for path in paths_to_scan:
         if not path: continue
         try:
             db_res = session.get(f"{base_url}{path}", verify=False, timeout=15)
@@ -109,7 +114,7 @@ def perform_backup_sync(server):
                 with open(filepath, 'wb') as f: f.write(db_res.content)
                 return filepath, path
         except: continue
-    return None, "Path not found"
+    return None, "Path not found (404)"
 
 def get_server_status_sync(server):
     session, base_url, error = get_authenticated_session(server)
@@ -141,7 +146,6 @@ async def update_job_schedule(application, interval, chat_id):
     current_jobs = job_queue.get_jobs_by_name('backup_job')
     for job in current_jobs:
         job.schedule_removal()
-    
     job_queue.run_repeating(scheduled_backup, interval=interval, first=interval, name='backup_job', chat_id=chat_id)
     logger.info(f"Schedule updated to every {interval} seconds.")
 
@@ -149,14 +153,22 @@ async def update_job_schedule(application, interval, chat_id):
 async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     settings = load_settings()
     current_schedule = settings.get("label", "هر 24 ساعت")
-    
     keyboard = [
         [InlineKeyboardButton("➕ افزودن سرور", callback_data='add_server'), InlineKeyboardButton("📋 مانیتورینگ", callback_data='list_servers')],
         [InlineKeyboardButton(f"⏱ زمان‌بندی: {current_schedule}", callback_data='schedule_menu')],
-        [InlineKeyboardButton("📤 دریافت تنظیمات (Export)", callback_data='export_settings')], # دکمه جدید
+        [InlineKeyboardButton("📤 دریافت تنظیمات (Export)", callback_data='export_settings')],
         [InlineKeyboardButton("🚀 بکاپ‌گیری آنی", callback_data='backup_all')]
     ]
-    msg = f"🔐 **مدیریت بکاپ X-UI**\nوضعیت: 🟢 فعال\nتعداد سرورها: {len(load_servers())}"
+    
+    # --- اضافه کردن متن هشدار به منوی اصلی ---
+    msg = (
+        f"🔐 **مدیریت بکاپ X-UI**\n"
+        f"وضعیت: 🟢 فعال\n"
+        f"تعداد سرورها: {len(load_servers())}\n\n"
+        f"⚠️ **تذکر مهم:**\n"
+        f"در صورت تغییر نسخه پنل (آپدیت/دانگرید)، حتماً از بخش مانیتورینگ، گزینه **«🔄 آپدیت مسیر»** را بزنید."
+    )
+    
     if update.message: await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
     else: await update.callback_query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
@@ -169,7 +181,7 @@ async def show_schedule_menu(update: Update):
         [InlineKeyboardButton("هر روز (24 ساعت)", callback_data='set_time_86400')],
         [InlineKeyboardButton("🔙 بازگشت", callback_data='main_menu')]
     ]
-    await update.callback_query.edit_message_text("⏰ **تنظیم فاصله زمانی بکاپ‌گیری:**\n\nیکی از گزینه‌های زیر را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    await update.callback_query.edit_message_text("⏰ **تنظیم فاصله زمانی:**", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
 # --- هندلر دکمه‌ها ---
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -179,40 +191,36 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
 
     if data == 'main_menu': await show_menu(update, context)
+    elif data == 'schedule_menu': await show_schedule_menu(update)
+    elif data == 'export_settings': await export_config_logic(update, context, chat_id=query.message.chat_id)
     
-    elif data == 'schedule_menu':
-        await show_schedule_menu(update)
-        
     elif data.startswith('set_time_'):
         seconds = int(data.split('_')[2])
         labels = {60: "1 دقیقه", 300: "5 دقیقه", 600: "10 دقیقه", 900: "15 دقیقه", 1800: "30 دقیقه", 3600: "1 ساعت", 21600: "6 ساعت", 43200: "12 ساعت", 86400: "24 ساعت"}
         label = labels.get(seconds, f"{seconds} ثانیه")
-        
         save_settings(seconds, label)
         await update_job_schedule(context.application, seconds, query.message.chat_id)
-        
-        await query.edit_message_text(f"✅ **زمان‌بندی تغییر کرد!**\n\nاز این به بعد، ربات **هر {label} یکبار** بکاپ می‌گیرد.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 بازگشت به منو", callback_data='main_menu')]]), parse_mode='Markdown')
+        await query.edit_message_text(f"✅ زمان‌بندی: **{label}**", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 بازگشت", callback_data='main_menu')]]), parse_mode='Markdown')
 
     elif data == 'list_servers':
         servers = load_servers()
         if not servers: 
             await query.edit_message_text("لیست خالی است.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 بازگشت", callback_data='main_menu')]]))
             return
-        await query.message.reply_text("⏳ دریافت وضعیت سرورها...")
+        await query.message.reply_text("⏳ دریافت وضعیت...")
         tasks = [get_status_async(s) for s in servers]
         results = await asyncio.gather(*tasks)
         for idx, status_text in enumerate(results):
-            keyboard = [[InlineKeyboardButton(f"🗑 حذف {servers[idx]['name']}", callback_data=f"del_{idx}")]]
+            keyboard = [
+                [InlineKeyboardButton("🔄 آپدیت مسیر دیتابیس", callback_data=f"rescan_{idx}")],
+                [InlineKeyboardButton(f"🗑 حذف {servers[idx]['name']}", callback_data=f"del_{idx}")]
+            ]
             await query.message.reply_text(status_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
         await query.message.reply_text("--- پایان ---", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 منو", callback_data='main_menu')]]))
 
     elif data == 'backup_all':
-        await query.message.reply_text("⏳ شروع بکاپ...")
+        await query.message.reply_text("⏳ بکاپ‌گیری شروع شد...")
         asyncio.create_task(run_backup_task(context, chat_id=query.message.chat_id))
-
-    # --- هندلر جدید دکمه Export ---
-    elif data == 'export_settings':
-        await export_config_logic(update, context, chat_id=query.message.chat_id)
 
     elif data.startswith('del_'):
         idx = int(data.split('_')[1])
@@ -221,6 +229,25 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             removed = servers.pop(idx)
             save_servers(servers)
             await query.edit_message_text(f"✅ سرور {removed['name']} حذف شد.")
+
+    elif data.startswith('rescan_'):
+        idx = int(data.split('_')[1])
+        servers = load_servers()
+        if 0 <= idx < len(servers):
+            server = servers[idx]
+            await query.message.reply_text(f"🔍 در حال اسکن مجدد مسیر برای **{server['name']}**...")
+            filepath, new_path = await perform_backup_async(server)
+            if filepath:
+                os.remove(filepath)
+                if server.get('db_path') != new_path:
+                    server['db_path'] = new_path
+                    servers[idx] = server
+                    save_servers(servers)
+                    await query.message.reply_text(f"✅ **مسیر آپدیت شد!**\nمسیر جدید: `{new_path}`", parse_mode='Markdown')
+                else:
+                    await query.message.reply_text(f"✅ مسیر فعلی صحیح است.\n`{new_path}`", parse_mode='Markdown')
+            else:
+                await query.message.reply_text(f"❌ خطا: نتوانستم مسیر دیتابیس را پیدا کنم.")
 
 # --- بکاپ ---
 async def run_backup_task(context, chat_id=None):
@@ -245,22 +272,16 @@ async def scheduled_backup(context):
     chat_id = context.job.chat_id if context.job.chat_id else int(config.ADMIN_ID)
     await run_backup_task(context, chat_id=chat_id)
 
-# --- قابلیت EXPORT (اصلاح شده برای دکمه و دستور) ---
 async def export_config_logic(update, context, chat_id):
-    await context.bot.send_message(chat_id=chat_id, text="📥 **در حال ارسال فایل‌های پیکربندی...**\n⚠️ این فایل‌ها حاوی کلید رمزنگاری هستند. آن‌ها را امن نگه دارید.")
+    await context.bot.send_message(chat_id=chat_id, text="📥 ارسال فایل‌های تنظیمات...")
     try:
-        if os.path.exists("config.py"):
-            with open("config.py", "rb") as f: await context.bot.send_document(chat_id=chat_id, document=f, caption="🔑 **Config File**")
-        if os.path.exists(DATA_FILE):
-            with open(DATA_FILE, "rb") as f: await context.bot.send_document(chat_id=chat_id, document=f, caption="📂 **Servers List** (Encrypted)")
-        if os.path.exists(SETTINGS_FILE):
-            with open(SETTINGS_FILE, "rb") as f: await context.bot.send_document(chat_id=chat_id, document=f, caption="⚙️ **Settings**")
-    except Exception as e:
-        await context.bot.send_message(chat_id=chat_id, text=f"❌ خطا: {e}")
+        for f_name in ["config.py", DATA_FILE, SETTINGS_FILE]:
+            if os.path.exists(f_name):
+                with open(f_name, "rb") as f: await context.bot.send_document(chat_id=chat_id, document=f)
+    except Exception as e: await context.bot.send_message(chat_id=chat_id, text=f"❌ Error: {e}")
 
-async def export_command_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not check_auth(update.effective_user.id): return
-    await export_config_logic(update, context, chat_id=update.effective_chat.id)
+async def export_command_handler(update, context):
+    if check_auth(update.effective_user.id): await export_config_logic(update, context, update.effective_chat.id)
 
 # --- Conversation ---
 async def back_to_main_menu(update, context): await update.message.reply_text("🔙 بازگشت.", reply_markup=ReplyKeyboardRemove()); await show_menu(update, context); return ConversationHandler.END
@@ -281,20 +302,23 @@ async def add_pass(update, context):
     fp, res = await perform_backup_async(temp)
     if fp:
         os.remove(fp); temp['db_path'] = res; servers = load_servers(); servers.append(temp); save_servers(servers)
-        try: await msg.edit_text(f"✅ سرور **{temp['name']}** اضافه شد.", parse_mode='Markdown')
-        except: await update.message.reply_text(f"✅ سرور **{temp['name']}** اضافه شد.")
+        try: await msg.edit_text(f"✅ سرور اضافه شد.", parse_mode='Markdown')
+        except: await update.message.reply_text(f"✅ سرور اضافه شد.")
     else:
         try: await msg.edit_text(f"❌ خطا:\n{res}")
         except: await update.message.reply_text(f"❌ خطا:\n{res}")
     return ConversationHandler.END
 
+async def post_init(application: Application):
+    commands = [("start", "🏠 منوی اصلی"), ("add", "➕ افزودن سرور"), ("export", "📤 بکاپ تنظیمات")]
+    await application.bot.set_my_commands(commands)
+
 def main():
     defaults = Defaults(tzinfo=pytz.timezone('Asia/Tehran'))
-    app = Application.builder().token(config.BOT_TOKEN).defaults(defaults).build()
+    app = Application.builder().token(config.BOT_TOKEN).defaults(defaults).post_init(post_init).build()
     
     settings = load_settings()
     initial_interval = settings.get("interval", 86400)
-    
     app.job_queue.run_repeating(scheduled_backup, interval=initial_interval, first=initial_interval, name='backup_job', chat_id=int(config.ADMIN_ID))
 
     back_filter = filters.Regex(f"^{BACK_BTN_TEXT}$")
@@ -310,7 +334,7 @@ def main():
     app.add_handler(CommandHandler("start", lambda u,c: show_menu(u,c) if check_auth(u.effective_user.id) else None))
     app.add_handler(CommandHandler("export", export_command_handler))
     
-    print(f"Bot V10 Started. Schedule: {initial_interval}s")
+    print(f"Bot V13 Started. Schedule: {initial_interval}s")
     app.run_polling()
 
 if __name__ == '__main__': main()

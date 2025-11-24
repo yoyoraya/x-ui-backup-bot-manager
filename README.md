@@ -13,7 +13,11 @@ It runs on your external server, connects to your panels (Sanaei, Alireza, Offic
 - 🧠 **Smart Auto-Discovery:** Automatically detects the correct database path (`/server/getDb`, `/panel/api/...`, etc.) regardless of the X-UI version.
 - 🔒 **Secure:** Restricted to the Admin's Telegram ID only. Configuration file is protected.
 - 🌍 **Multi-Server:** Manage unlimited servers from a single bot.
+- 🔄 **Smart Retry:** Auto-retries failed connections (3 attempts with delay) to handle network instability.
 - 🛠️ **No SSH Required:** Connects via the web panel port (HTTP/HTTPS).
+-  ⏱ **Dynamic Scheduler:** Change backup intervals directly from the Bot UI (Supports **1 min** to **24 hours**).
+- 🔒 **AES Encryption:** All server passwords are automatically encrypted in `servers.json` using Fernet/AES.
+- ⚡ **Non-Blocking Core:** Built with `AsyncIO`. The bot never freezes, even when handling 100+ servers or connection timeouts.
 
 ---
 
@@ -37,12 +41,18 @@ Done! The bot is now running in the background.
 | :--- | :--- |
 | `/start` | Show the main menu and welcome message. |
 | `/add` | Add a new X-UI server (Interactive wizard). |
-| `/list` | Show all saved servers and their status. |
-| `/backup` | Trigger an immediate backup for ALL servers. |
-| `/delete` | Instructions to remove a server. |
+
+##Dashboard Buttons:
+➕ Add Server: Add a new X-UI panel (supports Auto-Discovery).
+
+📋 Monitoring: Check the health status (CPU/RAM/Online) of all servers.
+
+⏱ Schedule: Change the automatic backup interval (e.g., Every 1 Hour).
+
+🚀 Instant Backup: Trigger an immediate backup for all servers.
 
 ## ⚙️ How It Works (Smart Logic)
-When you add a server using `/add`:
+When you add a server using 
 
 The bot attempts to Login using the provided credentials.
 

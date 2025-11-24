@@ -50,31 +50,34 @@ fi
 echo -e "${YELLOW}[+] Installing Python libraries...${NC}"
 pip3 install -r requirements.txt --break-system-packages 2>/dev/null || pip3 install -r requirements.txt
 
-# 4. دریافت اطلاعات و ساخت ایمن کانفیگ
+# 4. کانفیگ امنیتی
 echo -e "${BLUE}========================================${NC}"
 if [ ! -f "config.py" ]; then
-    echo -e "${GREEN}Configuring the Bot (Secure Mode):${NC}"
-    
-    # دریافت ورودی بدون نمایش کاراکترها (برای امنیت بیشتر) - اختیاری
-    read -p "Enter Telegram BOT TOKEN: " USER_TOKEN
-    read -p "Enter Admin Numeric CHAT ID: " USER_ID
+    echo -e "${GREEN}Configuring Secure Bot:${NC}"
+    read -p "Bot Token: " USER_TOKEN
+    read -p "Admin ID: " USER_ID
 
-    # ساخت فایل کانفیگ
+    # تولید کلید رمزنگاری با پایتون
+    echo -e "${YELLOW}[+] Generating Encryption Key...${NC}"
+    ENC_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+
     cat > config.py <<EOF
 BOT_TOKEN = "${USER_TOKEN}"
 ADMIN_ID = ${USER_ID}
+ENCRYPTION_KEY = "${ENC_KEY}"
 EOF
-
-    # --- بخش امنیتی جدید ---
-    # محدود کردن دسترسی فقط به روت (Read/Write for Owner only)
-    chmod 600 config.py
-    chown root:root config.py
     
-    echo -e "${GREEN}Config saved with secure permissions (600).${NC}"
-else
-    echo -e "${GREEN}Config file exists. Keeping current settings.${NC}"
-    # محض اطمینان، پرمیشن فایل قدیمی را هم اصلاح میکنیم
     chmod 600 config.py
+    echo -e "${GREEN}Config saved securely.${NC}"
+else
+    # اگر فایل کانفیگ هست، چک کن کلید داره یا نه. اگر نداشت اضافه کن (برای آپدیت)
+    if ! grep -q "ENCRYPTION_KEY" config.py; then
+        echo -e "${YELLOW}[+] Updating config with new encryption key...${NC}"
+        ENC_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+        echo "" >> config.py
+        echo "ENCRYPTION_KEY = \"${ENC_KEY}\"" >> config.py
+    fi
+    echo -e "${GREEN}Config updated.${NC}"
 fi
 # 5. ساخت سرویس Systemd با نام جدید
 echo -e "${YELLOW}[+] Creating system service ($SERVICE_NAME)...${NC}"

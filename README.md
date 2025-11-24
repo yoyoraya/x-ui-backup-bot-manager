@@ -3,23 +3,10 @@
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
 ![Telegram](https://img.shields.io/badge/Telegram-Bot-blue)
 ![Status](https://img.shields.io/badge/Status-Active-brightgreen)
+![backubx-ui](https://github.com/user-attachments/assets/6d674eb5-16e2-496c-82ec-2b1a709a78da)
 
 A professional, secure, and intelligent Telegram bot to manage backups for multiple **X-UI panels**.
 It runs on your external server, connects to your panels (Sanaei, Alireza, Official, etc.) via API, and sends the backup files directly to your Telegram.
-
-## ✨ Key Features
-
-- 🚀 **Quick Installer:** One-line installation command.
-- 🧠 **Smart Auto-Discovery:** Automatically detects the correct database path (`/server/getDb`, `/panel/api/...`, etc.) regardless of the X-UI version.
-- 🔒 **Secure:** Restricted to the Admin's Telegram ID only. Configuration file is protected.
-- 🌍 **Multi-Server:** Manage unlimited servers from a single bot.
-- 🔄 **Smart Retry:** Auto-retries failed connections (3 attempts with delay) to handle network instability.
-- 🛠️ **No SSH Required:** Connects via the web panel port (HTTP/HTTPS).
--  ⏱ **Dynamic Scheduler:** Change backup intervals directly from the Bot UI (Supports **1 min** to **24 hours**).
-- 🔒 **AES Encryption:** All server passwords are automatically encrypted in `servers.json` using Fernet/AES.
-- ⚡ **Non-Blocking Core:** Built with `AsyncIO`. The bot never freezes, even when handling 100+ servers or connection timeouts.
-
----
 
 ## 📥 Quick Installation (Recommended)
 
@@ -35,6 +22,20 @@ Enter your Telegram Bot Token (from @BotFather).
 Enter your Numeric Chat ID (from @userinfobot).
 
 Done! The bot is now running in the background.
+
+## ✨ Key Features
+
+- 🚀 **Quick Installer:** One-line installation command.
+- 🧠 **Smart Auto-Discovery:** Automatically detects the correct database path (`/server/getDb`, `/panel/api/...`, etc.) regardless of the X-UI version.
+- 🔒 **Secure:** Restricted to the Admin's Telegram ID only. Configuration file is protected.
+- 🌍 **Multi-Server:** Manage unlimited servers from a single bot.
+- 🔄 **Smart Retry:** Auto-retries failed connections (3 attempts with delay) to handle network instability.
+- 🛠️ **No SSH Required:** Connects via the web panel port (HTTP/HTTPS).
+-  ⏱ **Dynamic Scheduler:** Change backup intervals directly from the Bot UI (Supports **1 min** to **24 hours**).
+- 🔒 **AES Encryption:** All server passwords are automatically encrypted in `servers.json` using Fernet/AES.
+- ⚡ **Non-Blocking Core:** Built with `AsyncIO`. The bot never freezes, even when handling 100+ servers or connection timeouts.
+
+---
 ## 🤖 Bot Commands
 
 | Command | Description |

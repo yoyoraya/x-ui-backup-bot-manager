@@ -1,2 +1,7 @@
-Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): 2025-11-23 20:37:30
-Current User's Login: yoyoraya
+config.py
+servers.json
+settings.json
+backups/
+__pycache__/
+*.db
+.DS_Store

@@ -22,4 +22,35 @@ It runs on your external server, connects to your panels (Sanaei, Alireza, Offic
 Run this command on your **VPS (Ubuntu/Debian)**. The script will install Python, dependencies, and set up the system service automatically.
 
 ```bash
-bash <(curl -Ls [https://raw.githubusercontent.com/yoyoraya/x-ui-backup-bot-manager/main/install.sh](https://raw.githubusercontent.com/yoyoraya/x-ui-backup-bot-manager/main/install.sh))
+bash <(curl -Ls https://raw.githubusercontent.com/yoyoraya/x-ui-backup-bot-manager/main/install.sh) 
+```
+Paste the command and press Enter.
+
+Enter your Telegram Bot Token (from @BotFather).
+
+Enter your Numeric Chat ID (from @userinfobot).
+
+Done! The bot is now running in the background.
+## 🤖 Bot Commands
+
+| Command | Description |
+| :--- | :--- |
+| `/start` | Show the main menu and welcome message. |
+| `/add` | Add a new X-UI server (Interactive wizard). |
+| `/list` | Show all saved servers and their status. |
+| `/backup` | Trigger an immediate backup for ALL servers. |
+| `/delete` | Instructions to remove a server. |
+
+## How It Works (Smart Logic)
+When you add a server using `/add`:
+
+The bot attempts to Login using the provided credentials.
+
+If successful, it scans multiple known API endpoints (e.g., `/server/getDb`, `/panel/api/server/getDb`, etc.).
+
+Once it finds the correct path that returns a valid SQLite file, it saves that path for future use.
+
+This ensures compatibility with almost all X-UI forks (Sanaei, Vaxilu, FranzKafkaYu, etc.).
+
+Disclaimer
+This project is for educational and server management purposes. Use it responsibly.

@@ -41,7 +41,7 @@ Done! The bot is now running in the background.
 | `/backup` | Trigger an immediate backup for ALL servers. |
 | `/delete` | Instructions to remove a server. |
 
-## How It Works (Smart Logic)
+## ⚙️ How It Works (Smart Logic)
 When you add a server using `/add`:
 
 The bot attempts to Login using the provided credentials.

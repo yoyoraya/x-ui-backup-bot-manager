@@ -50,22 +50,32 @@ fi
 echo -e "${YELLOW}[+] Installing Python libraries...${NC}"
 pip3 install -r requirements.txt --break-system-packages 2>/dev/null || pip3 install -r requirements.txt
 
-# 4. دریافت اطلاعات کانفیگ
+# 4. دریافت اطلاعات و ساخت ایمن کانفیگ
 echo -e "${BLUE}========================================${NC}"
 if [ ! -f "config.py" ]; then
-    echo -e "${GREEN}Configuring the Bot:${NC}"
+    echo -e "${GREEN}Configuring the Bot (Secure Mode):${NC}"
+    
+    # دریافت ورودی بدون نمایش کاراکترها (برای امنیت بیشتر) - اختیاری
     read -p "Enter Telegram BOT TOKEN: " USER_TOKEN
     read -p "Enter Admin Numeric CHAT ID: " USER_ID
 
+    # ساخت فایل کانفیگ
     cat > config.py <<EOF
 BOT_TOKEN = "${USER_TOKEN}"
 ADMIN_ID = ${USER_ID}
 EOF
-    echo -e "${GREEN}Config saved.${NC}"
-else
-    echo -e "${GREEN}Config file exists. Skipping setup.${NC}"
-fi
 
+    # --- بخش امنیتی جدید ---
+    # محدود کردن دسترسی فقط به روت (Read/Write for Owner only)
+    chmod 600 config.py
+    chown root:root config.py
+    
+    echo -e "${GREEN}Config saved with secure permissions (600).${NC}"
+else
+    echo -e "${GREEN}Config file exists. Keeping current settings.${NC}"
+    # محض اطمینان، پرمیشن فایل قدیمی را هم اصلاح میکنیم
+    chmod 600 config.py
+fi
 # 5. ساخت سرویس Systemd با نام جدید
 echo -e "${YELLOW}[+] Creating system service ($SERVICE_NAME)...${NC}"
 cat > /etc/systemd/system/$SERVICE_NAME.service <<EOF

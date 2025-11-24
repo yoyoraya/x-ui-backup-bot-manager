@@ -266,7 +266,32 @@ async def add_pass(update, context):
         try: await msg.edit_text(f"❌ خطا:\n{res}")
         except: await update.message.reply_text(f"❌ خطا:\n{res}")
     return ConversationHandler.END
-
+# --- هندلر دریافت بکاپ تنظیمات (Export) ---
+async def export_config(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not check_auth(update.effective_user.id): return
+    
+    chat_id = update.effective_chat.id
+    await update.message.reply_text("📥 **در حال ارسال فایل‌های پیکربندی و دیتابیس...**\n\n⚠️ این فایل‌ها حاوی **کلید رمزنگاری** و **پسوردها** هستند. در حفظ آن‌ها کوشا باشید.")
+    
+    try:
+        # ارسال config.py (حاوی کلید)
+        if os.path.exists("config.py"):
+            with open("config.py", "rb") as f:
+                await context.bot.send_document(chat_id=chat_id, document=f, caption="🔑 **Config File**\n(Contains Encryption Key)")
+        
+        # ارسال servers.json (حاوی لیست سرورها)
+        if os.path.exists(DATA_FILE):
+            with open(DATA_FILE, "rb") as f:
+                await context.bot.send_document(chat_id=chat_id, document=f, caption="📂 **Servers List**\n(Encrypted Data)")
+                
+        # ارسال settings.json (زمان‌بندی)
+        if os.path.exists(SETTINGS_FILE):
+            with open(SETTINGS_FILE, "rb") as f:
+                await context.bot.send_document(chat_id=chat_id, document=f, caption="⚙️ **Settings**\n(Scheduler Info)")
+                
+    except Exception as e:
+        await update.message.reply_text(f"❌ خطا در ارسال فایل‌ها:\n{e}")
+        
 def main():
     defaults = Defaults(tzinfo=pytz.timezone('Asia/Tehran'))
     app = Application.builder().token(config.BOT_TOKEN).defaults(defaults).build()
@@ -288,8 +313,10 @@ def main():
     app.add_handler(conv)
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(CommandHandler("start", lambda u,c: show_menu(u,c) if check_auth(u.effective_user.id) else None))
+    # --- ثبت دستور export ---
+    app.add_handler(CommandHandler("export", export_config))
     
-    print(f"Bot V8 Started. Schedule: {initial_interval}s")
+    print(f"Bot V9 Started. Schedule: {initial_interval}s")
     app.run_polling()
 
 if __name__ == '__main__': main()

@@ -142,7 +142,6 @@ async def update_job_schedule(application, interval, chat_id):
     for job in current_jobs:
         job.schedule_removal()
     
-    # اصلاح شده: first=interval (یعنی اولین اجرا بعد از گذشت زمان تعیین شده)
     job_queue.run_repeating(scheduled_backup, interval=interval, first=interval, name='backup_job', chat_id=chat_id)
     logger.info(f"Schedule updated to every {interval} seconds.")
 
@@ -154,6 +153,7 @@ async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("➕ افزودن سرور", callback_data='add_server'), InlineKeyboardButton("📋 مانیتورینگ", callback_data='list_servers')],
         [InlineKeyboardButton(f"⏱ زمان‌بندی: {current_schedule}", callback_data='schedule_menu')],
+        [InlineKeyboardButton("📤 دریافت تنظیمات (Export)", callback_data='export_settings')], # دکمه جدید
         [InlineKeyboardButton("🚀 بکاپ‌گیری آنی", callback_data='backup_all')]
     ]
     msg = f"🔐 **مدیریت بکاپ X-UI**\nوضعیت: 🟢 فعال\nتعداد سرورها: {len(load_servers())}"
@@ -210,6 +210,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("⏳ شروع بکاپ...")
         asyncio.create_task(run_backup_task(context, chat_id=query.message.chat_id))
 
+    # --- هندلر جدید دکمه Export ---
+    elif data == 'export_settings':
+        await export_config_logic(update, context, chat_id=query.message.chat_id)
+
     elif data.startswith('del_'):
         idx = int(data.split('_')[1])
         servers = load_servers()
@@ -241,6 +245,23 @@ async def scheduled_backup(context):
     chat_id = context.job.chat_id if context.job.chat_id else int(config.ADMIN_ID)
     await run_backup_task(context, chat_id=chat_id)
 
+# --- قابلیت EXPORT (اصلاح شده برای دکمه و دستور) ---
+async def export_config_logic(update, context, chat_id):
+    await context.bot.send_message(chat_id=chat_id, text="📥 **در حال ارسال فایل‌های پیکربندی...**\n⚠️ این فایل‌ها حاوی کلید رمزنگاری هستند. آن‌ها را امن نگه دارید.")
+    try:
+        if os.path.exists("config.py"):
+            with open("config.py", "rb") as f: await context.bot.send_document(chat_id=chat_id, document=f, caption="🔑 **Config File**")
+        if os.path.exists(DATA_FILE):
+            with open(DATA_FILE, "rb") as f: await context.bot.send_document(chat_id=chat_id, document=f, caption="📂 **Servers List** (Encrypted)")
+        if os.path.exists(SETTINGS_FILE):
+            with open(SETTINGS_FILE, "rb") as f: await context.bot.send_document(chat_id=chat_id, document=f, caption="⚙️ **Settings**")
+    except Exception as e:
+        await context.bot.send_message(chat_id=chat_id, text=f"❌ خطا: {e}")
+
+async def export_command_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not check_auth(update.effective_user.id): return
+    await export_config_logic(update, context, chat_id=update.effective_chat.id)
+
 # --- Conversation ---
 async def back_to_main_menu(update, context): await update.message.reply_text("🔙 بازگشت.", reply_markup=ReplyKeyboardRemove()); await show_menu(update, context); return ConversationHandler.END
 async def add_start_cmd(update, context): 
@@ -266,32 +287,7 @@ async def add_pass(update, context):
         try: await msg.edit_text(f"❌ خطا:\n{res}")
         except: await update.message.reply_text(f"❌ خطا:\n{res}")
     return ConversationHandler.END
-# --- هندلر دریافت بکاپ تنظیمات (Export) ---
-async def export_config(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not check_auth(update.effective_user.id): return
-    
-    chat_id = update.effective_chat.id
-    await update.message.reply_text("📥 **در حال ارسال فایل‌های پیکربندی و دیتابیس...**\n\n⚠️ این فایل‌ها حاوی **کلید رمزنگاری** و **پسوردها** هستند. در حفظ آن‌ها کوشا باشید.")
-    
-    try:
-        # ارسال config.py (حاوی کلید)
-        if os.path.exists("config.py"):
-            with open("config.py", "rb") as f:
-                await context.bot.send_document(chat_id=chat_id, document=f, caption="🔑 **Config File**\n(Contains Encryption Key)")
-        
-        # ارسال servers.json (حاوی لیست سرورها)
-        if os.path.exists(DATA_FILE):
-            with open(DATA_FILE, "rb") as f:
-                await context.bot.send_document(chat_id=chat_id, document=f, caption="📂 **Servers List**\n(Encrypted Data)")
-                
-        # ارسال settings.json (زمان‌بندی)
-        if os.path.exists(SETTINGS_FILE):
-            with open(SETTINGS_FILE, "rb") as f:
-                await context.bot.send_document(chat_id=chat_id, document=f, caption="⚙️ **Settings**\n(Scheduler Info)")
-                
-    except Exception as e:
-        await update.message.reply_text(f"❌ خطا در ارسال فایل‌ها:\n{e}")
-        
+
 def main():
     defaults = Defaults(tzinfo=pytz.timezone('Asia/Tehran'))
     app = Application.builder().token(config.BOT_TOKEN).defaults(defaults).build()
@@ -299,7 +295,6 @@ def main():
     settings = load_settings()
     initial_interval = settings.get("interval", 86400)
     
-    # اصلاح شده: first=initial_interval (یعنی حتی موقع ریستارت هم بکاپ آنی نگیر، صبر کن زمانش برسه)
     app.job_queue.run_repeating(scheduled_backup, interval=initial_interval, first=initial_interval, name='backup_job', chat_id=int(config.ADMIN_ID))
 
     back_filter = filters.Regex(f"^{BACK_BTN_TEXT}$")
@@ -313,10 +308,9 @@ def main():
     app.add_handler(conv)
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(CommandHandler("start", lambda u,c: show_menu(u,c) if check_auth(u.effective_user.id) else None))
-    # --- ثبت دستور export ---
-    app.add_handler(CommandHandler("export", export_config))
+    app.add_handler(CommandHandler("export", export_command_handler))
     
-    print(f"Bot V9 Started. Schedule: {initial_interval}s")
+    print(f"Bot V10 Started. Schedule: {initial_interval}s")
     app.run_polling()
 
 if __name__ == '__main__': main()

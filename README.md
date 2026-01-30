@@ -34,6 +34,9 @@ Done! The bot is now running in the background.
 -  ⏱ **Dynamic Scheduler:** Change backup intervals directly from the Bot UI (Supports **1 min** to **24 hours**).
 - 🔒 **AES Encryption:** All server passwords are automatically encrypted in `servers.json` using Fernet/AES.
 - ⚡ **Non-Blocking Core:** Built with `AsyncIO`. The bot never freezes, even when handling 100+ servers or connection timeouts.
+- - ✏️ **Edit Server:** Update username/password easily without deleting the server.
+- ⚡ **Anti-Freeze Core:** Smart timeout system prevents the bot from locking up on unresponsive servers.
+- 🛡️ **HTML Protection:** Verifies SQLite header to ensure only valid database files are downloaded (prevents Login Page HTML download).
 
 ---
 ## 🤖 Bot Commands
